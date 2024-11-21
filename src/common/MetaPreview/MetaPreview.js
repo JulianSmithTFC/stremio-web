@@ -16,7 +16,10 @@ const useBinaryState = require('stremio/common/useBinaryState');
 const ActionButton = require('./ActionButton');
 const MetaLinks = require('./MetaLinks');
 const MetaPreviewPlaceholder = require('./MetaPreviewPlaceholder');
+const useToast = require('stremio/common/Toast/useToast');
 const styles = require('./styles');
+
+const { getMovieDataByIMDBID, startTorrentDownload }= require('../../services/movieService');
 
 const ALLOWED_LINK_REDIRECTS = [
     routesRegexp.search.regexp,
@@ -24,9 +27,11 @@ const ALLOWED_LINK_REDIRECTS = [
     routesRegexp.metadetails.regexp
 ];
 
-const MetaPreview = ({ className, compact, name, logo, background, runtime, releaseInfo, released, description, deepLinks, links, trailerStreams, inLibrary, toggleInLibrary }) => {
+const MetaPreview = ({ className, compact, name, logo, background, runtime, releaseInfo, released, description, deepLinks, links, trailerStreams, inLibrary, toggleInLibrary, imdb_id }) => {
     const { t } = useTranslation();
+    const toast = useToast();
     const [shareModalOpen, openShareModal, closeShareModal] = useBinaryState(false);
+
     const linksGroups = React.useMemo(() => {
         return Array.isArray(links) ?
             links
@@ -72,6 +77,8 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
             :
             new Map();
     }, [links]);
+
+
     const showHref = React.useMemo(() => {
         return deepLinks ?
             typeof deepLinks.player === 'string' ?
@@ -87,6 +94,8 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
             :
             null;
     }, [deepLinks]);
+
+
     const trailerHref = React.useMemo(() => {
         if (!Array.isArray(trailerStreams) || trailerStreams.length === 0) {
             return null;
@@ -94,9 +103,93 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
 
         return trailerStreams[0].deepLinks.player;
     }, [trailerStreams]);
+
+
     const renderLogoFallback = React.useCallback(() => (
         <div className={styles['logo-placeholder']}>{name}</div>
     ), [name]);
+
+    const handleDownload = async () => {
+        try {
+            if (imdb_id) {
+                const movieData = await getMovieDataByIMDBID(imdb_id);
+
+                if(movieData['code'] == 200){
+                    if(movieData['return-data']['movie-data']['movie_in_plex']){
+
+                        let movieInPlex = movieData['return-data']['movie-data']['movie_in_plex'];
+
+                        if(movieInPlex == 'true'){
+
+                            toast.show({
+                                type: 'success',
+                                title: 'Movie Already in Library',
+                                timeout: 3000,
+                            });
+
+                        }else{
+                            if(movieData['return-data']['movie-data']['magnet_url'] && movieData['return-data']['movie-data']['title_long']){
+                                let magnet_url = movieData['return-data']['movie-data']['magnet_url'];
+                                let title_long = movieData['return-data']['movie-data']['title_long'];
+
+                                const torrentStartedInfo = await startTorrentDownload(magnet_url, title_long);
+
+                                if(torrentStartedInfo['code'] == 200){
+                                    toast.show({
+                                        type: 'success',
+                                        title: 'Download Started Successfully',
+                                        timeout: 3000,
+                                    });
+                                }else{
+                                    toast.show({
+                                        type: 'error',
+                                        title: 'Something Went Wrong With Download',
+                                        timeout: 3000,
+                                    });
+                                }
+
+                                //Proceed with downloading
+
+                            }else{
+                                toast.show({
+                                    type: 'error',
+                                    title: 'No Magnet Link Found',
+                                    timeout: 3000,
+                                });
+                            }
+                        }
+                    }else{
+                        toast.show({
+                            type: 'error',
+                            title: 'Something Went Wrong With Download',
+                            timeout: 3000,
+                        });
+                    }
+                }else{
+                    toast.show({
+                        type: 'error',
+                        title: 'Download Option Could Not Be Found',
+                        timeout: 3000,
+                    });
+                }
+
+            } else {
+                toast.show({
+                    type: 'error',
+                    title: 'Download Option Could Not Be Found - No IMDb ID',
+                    timeout: 3000,
+                });
+            }
+        } catch (error) {
+            toast.show({
+                type: 'error',
+                title: 'Download Option Could Not Be Found',
+                timeout: 3000,
+            });
+        }
+    };
+
+
     return (
         <div className={classnames(className, styles['meta-preview-container'], { [styles['compact']]: compact })}>
             {
@@ -221,18 +314,6 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
                         null
                 }
                 {
-                    typeof showHref === 'string' && compact ?
-                        <ActionButton
-                            className={classnames(styles['action-button'], styles['show-button'])}
-                            icon={'play'}
-                            label={t('SHOW')}
-                            tabIndex={compact ? -1 : 0}
-                            href={showHref}
-                        />
-                        :
-                        null
-                }
-                {
                     linksGroups.has(CONSTANTS.SHARE_LINK_CATEGORY) && !compact ?
                         <React.Fragment>
                             <ActionButton
@@ -255,6 +336,30 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
                                     null
                             }
                         </React.Fragment>
+                        :
+                        null
+                }
+                {
+                    imdb_id &&
+                    <ActionButton
+                        id={`download-${imdb_id}`}
+                        className={styles['action-button']}
+                        icon={'download'}
+                        label={t('DOWNLOAD')}
+                        tooltip={true}
+                        tabIndex={compact ? -1 : 0}
+                        onClick={handleDownload}
+                    />
+                }
+                {
+                    typeof showHref === 'string' && compact ?
+                        <ActionButton
+                            className={classnames(styles['action-button'], styles['show-button'])}
+                            icon={'play'}
+                            label={t('SHOW')}
+                            tabIndex={compact ? -1 : 0}
+                            href={showHref}
+                        />
                         :
                         null
                 }
@@ -287,7 +392,8 @@ MetaPreview.propTypes = {
     })),
     trailerStreams: PropTypes.array,
     inLibrary: PropTypes.bool,
-    toggleInLibrary: PropTypes.func
+    toggleInLibrary: PropTypes.func,
+    imdb_id: PropTypes.string,
 };
 
 module.exports = MetaPreview;

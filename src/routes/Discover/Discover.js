@@ -20,11 +20,15 @@ const Discover = ({ urlParams, queryParams }) => {
     const [addonModalOpen, openAddonModal, closeAddonModal] = useBinaryState(false);
     const [selectedMetaItemIndex, setSelectedMetaItemIndex] = React.useState(0);
     const metasContainerRef = React.useRef();
+
+
     React.useEffect(() => {
         if (discover.catalog?.content.type === 'Loading') {
             metasContainerRef.current.scrollTop = 0;
         }
     }, [discover.catalog]);
+
+
     const selectedMetaItem = React.useMemo(() => {
         return discover.catalog !== null &&
             discover.catalog.content.type === 'Ready' &&
@@ -33,6 +37,8 @@ const Discover = ({ urlParams, queryParams }) => {
             :
             null;
     }, [discover.catalog, selectedMetaItemIndex]);
+
+
     const addToLibrary = React.useCallback(() => {
         if (selectedMetaItem === null) {
             return;
@@ -46,6 +52,8 @@ const Discover = ({ urlParams, queryParams }) => {
             }
         });
     }, [selectedMetaItem]);
+
+
     const removeFromLibrary = React.useCallback(() => {
         if (selectedMetaItem === null) {
             return;
@@ -59,28 +67,39 @@ const Discover = ({ urlParams, queryParams }) => {
             }
         });
     }, [selectedMetaItem]);
+
+
     const metaItemsOnFocusCapture = React.useCallback((event) => {
         if (event.target.dataset.index !== null && !isNaN(event.target.dataset.index)) {
             setSelectedMetaItemIndex(parseInt(event.target.dataset.index, 10));
         }
     }, []);
+
+
     const metaItemOnClick = React.useCallback((event) => {
         if (event.currentTarget.dataset.index !== selectedMetaItemIndex.toString()) {
             event.preventDefault();
             event.currentTarget.focus();
         }
     }, [selectedMetaItemIndex]);
+
+
     const onScrollToBottom = React.useCallback(() => {
         if (hasNextPage) {
             loadNextPage();
         }
     }, [hasNextPage, loadNextPage]);
+
+
     const onScroll = useOnScrollToBottom(onScrollToBottom, SCROLL_TO_BOTTOM_TRESHOLD);
+
     React.useEffect(() => {
         closeInputsModal();
         closeAddonModal();
         setSelectedMetaItemIndex(0);
     }, [discover.selected]);
+
+
     return (
         <MainNavBars className={styles['discover-container']} route={'discover'}>
             <div className={styles['discover-content']}>
@@ -172,9 +191,10 @@ const Discover = ({ urlParams, queryParams }) => {
                             description={selectedMetaItem.description}
                             links={selectedMetaItem.links}
                             deepLinks={selectedMetaItem.deepLinks}
-                            trailerStreams={selectedMetaItem.trailerStreams}
+                            // trailerStreams={selectedMetaItem.trailerStreams}
                             inLibrary={selectedMetaItem.inLibrary}
                             toggleInLibrary={selectedMetaItem.inLibrary ? removeFromLibrary : addToLibrary}
+                            imdb_id={selectedMetaItem.id}
                         />
                         :
                         discover.catalog !== null && discover.catalog.content.type === 'Loading' ?

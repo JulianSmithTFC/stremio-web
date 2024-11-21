@@ -5,7 +5,9 @@ const { useServices } = require('stremio/services');
 const { useModelState } = require('stremio/common');
 
 const useBoard = () => {
+
     const { core } = useServices();
+
     const action = React.useMemo(() => ({
         action: 'Load',
         args: {
@@ -13,6 +15,8 @@ const useBoard = () => {
             args: { extra: [] }
         }
     }), []);
+
+
     const loadRange = React.useCallback((range) => {
         core.transport.dispatch({
             action: 'CatalogsWithExtra',
@@ -22,7 +26,11 @@ const useBoard = () => {
             }
         }, 'board');
     }, []);
+
     const board = useModelState({ model: 'board', action });
+
+    console.log(board);
+
     return [board, loadRange];
 };
 

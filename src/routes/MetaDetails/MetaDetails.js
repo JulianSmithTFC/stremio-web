@@ -17,12 +17,16 @@ const MetaDetails = ({ urlParams, queryParams }) => {
     const metaDetails = useMetaDetails(urlParams);
     const [season, setSeason] = useSeason(urlParams, queryParams);
     const [tabs, metaExtension, clearMetaExtension] = useMetaExtensionTabs(metaDetails.metaExtensions);
+
+
     const [metaPath, streamPath] = React.useMemo(() => {
         return metaDetails.selected !== null ?
             [metaDetails.selected.metaPath, metaDetails.selected.streamPath]
             :
             [null, null];
     }, [metaDetails.selected]);
+
+
     const video = React.useMemo(() => {
         return streamPath !== null && metaDetails.metaItem !== null && metaDetails.metaItem.content.type === 'Ready' ?
             metaDetails.metaItem.content.content.videos.reduce((result, video) => {
@@ -35,6 +39,8 @@ const MetaDetails = ({ urlParams, queryParams }) => {
             :
             null;
     }, [metaDetails.metaItem, streamPath]);
+
+
     const addToLibrary = React.useCallback(() => {
         if (metaDetails.metaItem === null || metaDetails.metaItem.content.type !== 'Ready') {
             return;
@@ -48,6 +54,8 @@ const MetaDetails = ({ urlParams, queryParams }) => {
             }
         });
     }, [metaDetails]);
+
+
     const removeFromLibrary = React.useCallback(() => {
         if (metaDetails.metaItem === null || metaDetails.metaItem.content.type !== 'Ready') {
             return;
@@ -61,6 +69,21 @@ const MetaDetails = ({ urlParams, queryParams }) => {
             }
         });
     }, [metaDetails]);
+
+
+    // console.log('fuck');
+    // if(process.env.Personal_Middleware_URL){
+    //     console.log(process.env.Personal_Middleware_URL);
+    // }
+
+    // if(metaDetails.libraryItem){
+    //     console.log(metaDetails.libraryItem._id);
+    // }
+    // if(metaDetails.metaItem){
+    //     console.log(metaDetails.metaItem);
+    // }
+
+
     const toggleNotifications = React.useCallback(() => {
         if (metaDetails.libraryItem) {
             core.transport.dispatch({
@@ -72,16 +95,22 @@ const MetaDetails = ({ urlParams, queryParams }) => {
             });
         }
     }, [metaDetails.libraryItem]);
+
+
     const seasonOnSelect = React.useCallback((event) => {
         setSeason(event.value);
     }, [setSeason]);
+
+
     const renderBackgroundImageFallback = React.useCallback(() => null, []);
+
+
     return (
         <div className={styles['metadetails-container']}>
             <HorizontalNavBar
                 className={styles['nav-bar']}
                 backButton={true}
-                addonsButton={true}
+                addonsButton={false}
                 fullscreenButton={true}
                 navMenu={true}
             />
@@ -152,6 +181,7 @@ const MetaDetails = ({ urlParams, queryParams }) => {
                                             trailerStreams={metaDetails.metaItem.content.content.trailerStreams}
                                             inLibrary={metaDetails.metaItem.content.content.inLibrary}
                                             toggleInLibrary={metaDetails.metaItem.content.content.inLibrary ? removeFromLibrary : addToLibrary}
+                                            imdb_id={metaDetails.metaItem.content.content.id}
                                         />
                                     </React.Fragment>
                 }
@@ -210,7 +240,7 @@ const MetaDetailsFallback = () => (
         <HorizontalNavBar
             className={styles['nav-bar']}
             backButton={true}
-            addonsButton={true}
+            addonsButton={false}
             fullscreenButton={true}
             navMenu={true}
         />

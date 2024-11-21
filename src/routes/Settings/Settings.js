@@ -13,6 +13,9 @@ const useStreamingServerSettingsInputs = require('./useStreamingServerSettingsIn
 const useDataExport = require('./useDataExport');
 const styles = require('./styles');
 
+const auth = require('../../firebase');
+const { signOut } = require('firebase/auth');
+
 const GENERAL_SECTION = 'general';
 const PLAYER_SECTION = 'player';
 const STREAMING_SECTION = 'streaming';
@@ -59,11 +62,6 @@ const Settings = () => {
         streamingServerUrlInput.onChange(configureServerUrlInputRef.current.value);
         closeConfigureServerUrlModal();
     }, [streamingServerUrlInput]);
-    const [traktAuthStarted, setTraktAuthStarted] = React.useState(false);
-    const isTraktAuthenticated = React.useMemo(() => {
-        return profile.auth !== null && profile.auth.user !== null && profile.auth.user.trakt !== null &&
-            (Date.now() / 1000) < (profile.auth.user.trakt.created_at + profile.auth.user.trakt.expires_in);
-    }, [profile.auth]);
     const configureServerUrlModalButtons = React.useMemo(() => {
         return [
             {
@@ -81,40 +79,20 @@ const Settings = () => {
             }
         ];
     }, [configureServerUrlOnSubmit]);
-    const logoutButtonOnClick = React.useCallback(() => {
-        core.transport.dispatch({
-            action: 'Ctx',
-            args: {
-                action: 'Logout'
-            }
-        });
-    }, []);
-    const toggleTraktOnClick = React.useCallback(() => {
-        if (!isTraktAuthenticated && profile.auth !== null && profile.auth.user !== null && typeof profile.auth.user._id === 'string') {
-            platform.openExternal(`https://www.strem.io/trakt/auth/${profile.auth.user._id}`);
-            setTraktAuthStarted(true);
-        } else {
-            core.transport.dispatch({
-                action: 'Ctx',
-                args: {
-                    action: 'LogoutTrakt'
-                }
-            });
-        }
-    }, [isTraktAuthenticated, profile.auth]);
-    const subscribeCalendarOnClick = React.useCallback(() => {
-        if (!profile.auth) return;
 
-        const protocol = platform.name === 'ios' ? 'webcal' : 'https';
-        const url = `${protocol}://www.strem.io/calendar/${profile.auth.user._id}.ics`;
-        platform.openExternal(url);
-        toast.show({
-            type: 'success',
-            title: platform.name === 'ios' ? t('SETTINGS_SUBSCRIBE_CALENDAR_IOS_TOAST') : t('SETTINGS_SUBSCRIBE_CALENDAR_TOAST'),
-            timeout: 25000
-        });
-        // Stremio 4 emits not documented event subscribeCalendar
-    }, [profile.auth]);
+
+    const logoutButtonOnClick = React.useCallback(async () => {
+        try {
+            await signOut(auth.default);
+            console.log('User signed out successfully');
+            // Optionally, redirect the user to the login page or another route
+            // window.location.href = '/login';
+        } catch (error) {
+            console.error('Error signing out:', error);
+        }
+    }, []);
+
+
     const exportDataOnClick = React.useCallback(() => {
         loadDataExport();
     }, []);
@@ -172,22 +150,6 @@ const Settings = () => {
     const sectionsContainerOnScroll = React.useCallback(throttle(() => {
         updateSelectedSectionId();
     }, 50), []);
-    React.useEffect(() => {
-        if (isTraktAuthenticated && traktAuthStarted) {
-            core.transport.dispatch({
-                action: 'Ctx',
-                args: {
-                    action: 'InstallTraktAddon'
-                }
-            });
-            setTraktAuthStarted(false);
-        }
-    }, [isTraktAuthenticated, traktAuthStarted]);
-    React.useEffect(() => {
-        if (dataExport.exportUrl !== null && typeof dataExport.exportUrl === 'string') {
-            platform.openExternal(dataExport.exportUrl);
-        }
-    }, [dataExport.exportUrl]);
     React.useLayoutEffect(() => {
         if (routeFocused) {
             updateSelectedSectionId();
@@ -229,16 +191,16 @@ const Settings = () => {
                                         backgroundImage: profile.auth === null ?
                                             `url('${require('/images/anonymous.png')}')`
                                             :
-                                            profile.auth.user.avatar ?
-                                                `url('${profile.auth.user.avatar}')`
+                                            profile.auth.photoURL ?
+                                                `url('${profile.auth.photoURL}')`
                                                 :
                                                 `url('${require('/images/default_avatar.png')}')`
                                     }}
                                 />
                                 <div className={styles['email-logout-container']}>
-                                    <div className={styles['email-label-container']} title={profile.auth === null ? 'Anonymous user' : profile.auth.user.email}>
+                                    <div className={styles['email-label-container']} title={profile.auth === null ? 'Anonymous user' : profile.auth.email}>
                                         <div className={styles['email-label']}>
-                                            {profile.auth === null ? 'Anonymous user' : profile.auth.user.email}
+                                            {profile.auth === null ? 'Anonymous user' : profile.auth.email}
                                         </div>
                                     </div>
                                     {
@@ -262,79 +224,6 @@ const Settings = () => {
                                 :
                                 null
                         }
-                    </div>
-                    <div className={styles['section-container']}>
-                        <div className={classnames(styles['option-container'], styles['link-container'])}>
-                            {
-                                profile.auth ?
-                                    <Button className={classnames(styles['option-input-container'], styles['link-input-container'])} title={t('SETTINGS_DATA_EXPORT')} tabIndex={-1} onClick={exportDataOnClick}>
-                                        <div className={styles['label']}>{ t('SETTINGS_DATA_EXPORT') }</div>
-                                    </Button>
-                                    :
-                                    null
-                            }
-                        </div>
-                        {
-                            profile.auth !== null && profile.auth.user !== null && typeof profile.auth.user._id === 'string' ?
-                                <div className={classnames(styles['option-container'], styles['link-container'])}>
-                                    <Button className={classnames(styles['option-input-container'], styles['link-input-container'])} title={t('SETTINGS_SUBSCRIBE_CALENDAR')} tabIndex={-1} onClick={subscribeCalendarOnClick}>
-                                        <div className={styles['label']}>{ t('SETTINGS_SUBSCRIBE_CALENDAR') }</div>
-                                    </Button>
-                                </div>
-                                :
-                                null
-                        }
-                        <div className={classnames(styles['option-container'], styles['link-container'])}>
-                            <Button className={classnames(styles['option-input-container'], styles['link-input-container'])} title={t('SETTINGS_SUPPORT')} target={'_blank'} href={'https://stremio.zendesk.com/hc/en-us'}>
-                                <div className={styles['label']}>{ t('SETTINGS_SUPPORT') }</div>
-                            </Button>
-                        </div>
-                        <div className={classnames(styles['option-container'], styles['link-container'])}>
-                            <Button className={classnames(styles['option-input-container'], styles['link-input-container'])} title={'Source code'} target={'_blank'} href={`https://github.com/stremio/stremio-web/tree/${process.env.COMMIT_HASH}`}>
-                                <div className={styles['label']}>Source code</div>
-                            </Button>
-                        </div>
-                        <div className={classnames(styles['option-container'], styles['link-container'])}>
-                            <Button className={classnames(styles['option-input-container'], styles['link-input-container'])} title={t('TERMS_OF_SERVICE')} target={'_blank'} href={'https://www.stremio.com/tos'}>
-                                <div className={styles['label']}>{ t('TERMS_OF_SERVICE') }</div>
-                            </Button>
-                        </div>
-                        <div className={classnames(styles['option-container'], styles['link-container'])}>
-                            <Button className={classnames(styles['option-input-container'], styles['link-input-container'])} title={t('PRIVACY_POLICY')} target={'_blank'} href={'https://www.stremio.com/privacy'}>
-                                <div className={styles['label']}>{ t('PRIVACY_POLICY') }</div>
-                            </Button>
-                        </div>
-                        {
-                            profile.auth !== null && profile.auth.user !== null ?
-                                <div className={classnames(styles['option-container'], styles['link-container'])}>
-                                    <Button className={classnames(styles['option-input-container'], styles['link-input-container'])} title={t('SETTINGS_ACC_DELETE')} target={'_blank'} href={'https://stremio.zendesk.com/hc/en-us/articles/360021428911-How-to-delete-my-account'}>
-                                        <div className={styles['label']}>{ t('SETTINGS_ACC_DELETE') }</div>
-                                    </Button>
-                                </div>
-                                :
-                                null
-                        }
-                        {
-                            profile.auth !== null && profile.auth.user !== null && typeof profile.auth.user.email === 'string' ?
-                                <div className={styles['option-container']}>
-                                    <Button className={classnames(styles['option-input-container'], styles['link-input-container'])} title={t('SETTINGS_CHANGE_PASSWORD')} target={'_blank'} href={`https://www.strem.io/reset-password/${profile.auth.user.email}`}>
-                                        <div className={styles['label']}>{ t('SETTINGS_CHANGE_PASSWORD') }</div>
-                                    </Button>
-                                </div>
-                                :
-                                null
-                        }
-                        <div className={styles['option-container']}>
-                            <div className={classnames(styles['option-name-container'], styles['trakt-icon'])}>
-                                <Icon className={styles['icon']} name={'trakt'} />
-                                <div className={styles['label']}>Trakt Scrobbling</div>
-                            </div>
-                            <Button className={classnames(styles['option-input-container'], styles['button-container'])} title={'Authenticate'} disabled={profile.auth === null} tabIndex={-1} onClick={toggleTraktOnClick}>
-                                <div className={styles['label']}>
-                                    { profile.auth !== null && profile.auth.user !== null && profile.auth.user.trakt !== null ? t('LOG_OUT') : t('SETTINGS_TRAKT_AUTHENTICATE') }
-                                </div>
-                            </Button>
-                        </div>
                     </div>
                     <div className={styles['section-container']}>
                         <div className={styles['option-container']}>

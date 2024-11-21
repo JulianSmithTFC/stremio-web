@@ -1,5 +1,6 @@
 // Copyright (C) 2017-2023 Smart code 203358507
 
+const auth = require('../firebase');
 const useModelState = require('stremio/common/useModelState');
 
 const map = (ctx) => ({
@@ -16,7 +17,10 @@ const map = (ctx) => ({
 });
 
 const useProfile = () => {
-    return useModelState({ model: 'ctx', map });
+    const profile = useModelState({ model: 'ctx', map });
+    profile.auth = auth.default.currentUser;
+    // console.log(profile);
+    return profile;
 };
 
 module.exports = useProfile;

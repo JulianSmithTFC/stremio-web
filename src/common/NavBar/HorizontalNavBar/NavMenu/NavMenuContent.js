@@ -13,6 +13,10 @@ const usePWA = require('stremio/common/usePWA');
 const useTorrent = require('stremio/common/useTorrent');
 const { withCoreSuspender } = require('stremio/common/CoreSuspender');
 const styles = require('./styles');
+// const auth = require("stremio/firebase");
+
+const auth = require('../../../../firebase');
+const { signOut } = require('firebase/auth');
 
 const NavMenuContent = ({ onClick }) => {
     const { t } = useTranslation();
@@ -21,14 +25,21 @@ const NavMenuContent = ({ onClick }) => {
     const { createTorrentFromMagnet } = useTorrent();
     const [fullscreen, requestFullscreen, exitFullscreen] = useFullscreen();
     const [isIOSPWA, isAndroidPWA] = usePWA();
-    const logoutButtonOnClick = React.useCallback(() => {
-        core.transport.dispatch({
-            action: 'Ctx',
-            args: {
-                action: 'Logout'
-            }
-        });
+
+
+    const logoutButtonOnClick = React.useCallback(async () => {
+        try {
+            await signOut(auth.default);
+            console.log('User signed out successfully');
+            // Optionally, redirect the user to the login page or another route
+            // window.location.href = '/login';
+        } catch (error) {
+            console.error('Error signing out:', error);
+        }
     }, []);
+
+
+
     const onPlayMagnetLinkClick = React.useCallback(async () => {
         try {
             const clipboardText = await navigator.clipboard.readText();
@@ -46,15 +57,15 @@ const NavMenuContent = ({ onClick }) => {
                         backgroundImage: profile.auth === null ?
                             `url('${require('/images/anonymous.png')}')`
                             :
-                            profile.auth.user.avatar ?
-                                `url('${profile.auth.user.avatar}')`
+                            profile.auth.photoURL ?
+                                `url('${profile.auth.photoURL}')`
                                 :
                                 `url('${require('/images/default_avatar.png')}')`
                     }}
                 />
                 <div className={styles['user-info-details']}>
                     <div className={styles['email-container']}>
-                        <div className={styles['email-label']}>{profile.auth === null ? t('ANONYMOUS_USER') : profile.auth.user.email}</div>
+                        <div className={styles['email-label']}>{profile.auth === null ? t('ANONYMOUS_USER') : profile.auth.email}</div>
                     </div>
                     <Button className={styles['logout-button-container']} title={profile.auth === null ? `${t('LOG_IN')} / ${t('SIGN_UP')}` : t('LOG_OUT')} href={profile.auth === null ? '#/intro' : null} onClick={profile.auth !== null ? logoutButtonOnClick : null}>
                         <div className={styles['logout-label']}>{profile.auth === null ? `${t('LOG_IN')} / ${t('SIGN_UP')}` : t('LOG_OUT')}</div>
@@ -81,31 +92,31 @@ const NavMenuContent = ({ onClick }) => {
                     <Icon className={styles['icon']} name={'addons-outline'} />
                     <div className={styles['nav-menu-option-label']}>{ t('ADDONS') }</div>
                 </Button>
-                <Button className={styles['nav-menu-option-container']} title={ t('PLAY_URL_MAGNET_LINK') } onClick={onPlayMagnetLinkClick}>
-                    <Icon className={styles['icon']} name={'magnet-link'} />
-                    <div className={styles['nav-menu-option-label']}>{ t('PLAY_URL_MAGNET_LINK') }</div>
-                </Button>
-                <Button className={styles['nav-menu-option-container']} title={ t('HELP_FEEDBACK') } href={'https://stremio.zendesk.com/'} target={'_blank'}>
-                    <Icon className={styles['icon']} name={'help'} />
-                    <div className={styles['nav-menu-option-label']}>{ t('HELP_FEEDBACK') }</div>
-                </Button>
+                {/*<Button className={styles['nav-menu-option-container']} title={ t('PLAY_URL_MAGNET_LINK') } onClick={onPlayMagnetLinkClick}>*/}
+                {/*    <Icon className={styles['icon']} name={'magnet-link'} />*/}
+                {/*    <div className={styles['nav-menu-option-label']}>{ t('PLAY_URL_MAGNET_LINK') }</div>*/}
+                {/*</Button>*/}
+                {/*<Button className={styles['nav-menu-option-container']} title={ t('HELP_FEEDBACK') } href={'https://stremio.zendesk.com/'} target={'_blank'}>*/}
+                {/*    <Icon className={styles['icon']} name={'help'} />*/}
+                {/*    <div className={styles['nav-menu-option-label']}>{ t('HELP_FEEDBACK') }</div>*/}
+                {/*</Button>*/}
             </div>
-            <div className={styles['nav-menu-section']}>
-                <Button className={styles['nav-menu-option-container']} title={ t('TERMS_OF_SERVICE') } href={'https://www.stremio.com/tos'} target={'_blank'}>
-                    <div className={styles['nav-menu-option-label']}>{ t('TERMS_OF_SERVICE') }</div>
-                </Button>
-                <Button className={styles['nav-menu-option-container']} title={ t('PRIVACY_POLICY') } href={'https://www.stremio.com/privacy'} target={'_blank'}>
-                    <div className={styles['nav-menu-option-label']}>{ t('PRIVACY_POLICY') }</div>
-                </Button>
-                {
-                    profile.auth !== null ?
-                        <Button className={styles['nav-menu-option-container']} title={ t('USER_PANEL') } href={'https://www.stremio.com/acc-settings'} target={'_blank'}>
-                            <div className={styles['nav-menu-option-label']}>{ t('USER_PANEL') }</div>
-                        </Button>
-                        :
-                        null
-                }
-            </div>
+            {/*<div className={styles['nav-menu-section']}>*/}
+            {/*    <Button className={styles['nav-menu-option-container']} title={ t('TERMS_OF_SERVICE') } href={'https://www.stremio.com/tos'} target={'_blank'}>*/}
+            {/*        <div className={styles['nav-menu-option-label']}>{ t('TERMS_OF_SERVICE') }</div>*/}
+            {/*    </Button>*/}
+            {/*    <Button className={styles['nav-menu-option-container']} title={ t('PRIVACY_POLICY') } href={'https://www.stremio.com/privacy'} target={'_blank'}>*/}
+            {/*        <div className={styles['nav-menu-option-label']}>{ t('PRIVACY_POLICY') }</div>*/}
+            {/*    </Button>*/}
+            {/*    {*/}
+            {/*        profile.auth !== null ?*/}
+            {/*            <Button className={styles['nav-menu-option-container']} title={ t('USER_PANEL') } href={'https://www.stremio.com/acc-settings'} target={'_blank'}>*/}
+            {/*                <div className={styles['nav-menu-option-label']}>{ t('USER_PANEL') }</div>*/}
+            {/*            </Button>*/}
+            {/*            :*/}
+            {/*            null*/}
+            {/*    }*/}
+            {/*</div>*/}
         </div>
     );
 };

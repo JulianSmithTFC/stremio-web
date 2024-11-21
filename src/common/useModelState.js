@@ -9,13 +9,17 @@ const { useRouteFocused } = require('stremio-router');
 const { useServices } = require('stremio/services');
 
 const useModelState = ({ action, ...args }) => {
+
     const { core } = useServices();
     const routeFocused = useRouteFocused();
     const mountedRef = React.useRef(false);
+
     const [model, timeout, map, deps] = React.useMemo(() => {
         return [args.model, args.timeout, args.map, args.deps];
     }, []);
+
     const { getState } = useCoreSuspender();
+
     const [state, setState] = React.useReducer(
         (prevState, nextState) => {
             return Object.keys(prevState).reduce((result, key) => {
@@ -32,16 +36,19 @@ const useModelState = ({ action, ...args }) => {
             }
         }
     );
+
     React.useInsertionEffect(() => {
         if (action) {
             core.transport.dispatch(action, model);
         }
     }, [action]);
+
     React.useInsertionEffect(() => {
         return () => {
             core.transport.dispatch({ action: 'Unload' }, model);
         };
     }, []);
+
     React.useInsertionEffect(() => {
         const onNewState = async (models) => {
             if (models.indexOf(model) === -1 && (!Array.isArray(deps) || intersection(deps, models).length === 0)) {
@@ -55,7 +62,9 @@ const useModelState = ({ action, ...args }) => {
                 setState(state);
             }
         };
+
         const onNewStateThrottled = throttle(onNewState, timeout);
+
         if (routeFocused) {
             core.transport.on('NewState', onNewStateThrottled);
             if (mountedRef.current) {
@@ -67,10 +76,12 @@ const useModelState = ({ action, ...args }) => {
             core.transport.off('NewState', onNewStateThrottled);
         };
     }, [routeFocused]);
+
     React.useInsertionEffect(() => {
         mountedRef.current = true;
     }, []);
     return state;
+
 };
 
 module.exports = useModelState;

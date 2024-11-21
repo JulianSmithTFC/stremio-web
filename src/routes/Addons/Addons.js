@@ -23,11 +23,49 @@ const Addons = ({ urlParams, queryParams }) => {
     const [filtersModalOpen, openFiltersModal, closeFiltersModal] = useBinaryState(false);
     const [addAddonModalOpen, openAddAddonModal, closeAddAddonModal] = useBinaryState(false);
     const addAddonUrlInputRef = React.useRef(null);
-    const addAddonOnSubmit = React.useCallback(() => {
+
+
+    const fetchAddonManifest = async (url) => {
+        try {
+            const response = await fetch(url);
+
+            // fetch("https://stremio-jellyfin-addon.strembros.com/");
+
+            console.log(url);
+            console.log(response);
+
+            if (response.ok || response.type === 'opaque') {
+                // Process response if successful or opaque response is received
+                const data = await response.json();
+                return data;
+            } else {
+                console.error("Failed to fetch addon manifest:", response.status);
+            }
+        } catch (error) {
+            console.error("Error fetching addon manifest:", error);
+        }
+    };
+
+    const addAddonOnSubmit = React.useCallback(async () => {
         if (addAddonUrlInputRef.current !== null) {
-            setAddonDetailsTransportUrl(addAddonUrlInputRef.current.value);
+            const addonUrl = addAddonUrlInputRef.current.value;
+            // Attempt to fetch the manifest with no-cors
+            const manifestData = await fetchAddonManifest(addonUrl);
+            if (manifestData) {
+                setAddonDetailsTransportUrl(addonUrl);
+            }
         }
     }, [setAddonDetailsTransportUrl]);
+
+
+    // const addAddonOnSubmit = React.useCallback(() => {
+    //     if (addAddonUrlInputRef.current !== null) {
+    //         setAddonDetailsTransportUrl(addAddonUrlInputRef.current.value);
+    //     }
+    // }, [setAddonDetailsTransportUrl]);
+
+
+
     const addAddonModalButtons = React.useMemo(() => {
         return [
             {

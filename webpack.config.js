@@ -154,11 +154,21 @@ module.exports = (env, argv) => ({
         }
     },
     devServer: {
-        host: '0.0.0.0',
+        host: '127.0.0.1',
         static: false,
         hot: false,
         server: 'https',
-        liveReload: false
+        open: true,
+        liveReload: true,
+        // proxy: [
+        //     {
+        //         context: ['/stremio-jellyfin-addon-manifest'],
+        //         target: 'http://192.168.0.140:60421/manifest.json',
+        //         target: 'https://stremio-jellyfin-addon.strembros.com/manifest.json',
+                // secure: false,       // Disable SSL verification
+                // changeOrigin: true,  // Set changeOrigin to avoid potential host header issues
+            // },
+        // ],
     },
     optimization: {
         minimize: true,
@@ -186,7 +196,9 @@ module.exports = (env, argv) => ({
             ...env,
             DEBUG: argv.mode !== 'production',
             VERSION: pachageJson.version,
-            COMMIT_HASH
+            COMMIT_HASH,
+            Personal_Middleware_URL: 'https://middleware.strembros.com',
+            Personal_Middleware_API_Key: 'f6db55da490da07886b5b9927b7620f5'
         }),
         new webpack.ProvidePlugin({
             Buffer: ['buffer', 'Buffer']

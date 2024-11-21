@@ -1,5 +1,3 @@
-// Copyright (C) 2017-2023 Smart code 203358507
-
 require('spatial-navigation-polyfill');
 const React = require('react');
 const { useTranslation } = require('react-i18next');

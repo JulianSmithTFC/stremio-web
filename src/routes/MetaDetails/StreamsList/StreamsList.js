@@ -13,12 +13,17 @@ const styles = require('./styles');
 const ALL_ADDONS_KEY = 'ALL';
 
 const StreamsList = ({ className, video, ...props }) => {
+
     const { t } = useTranslation();
     const { core } = useServices();
     const [selectedAddon, setSelectedAddon] = React.useState(ALL_ADDONS_KEY);
+
+
     const onAddonSelected = React.useCallback((event) => {
         setSelectedAddon(event.value);
     }, []);
+
+
     const backButtonOnClick = React.useCallback(() => {
         if (video.deepLinks && typeof video.deepLinks.metaDetailsVideos === 'string') {
             window.location.replace(video.deepLinks.metaDetailsVideos + (
@@ -31,32 +36,73 @@ const StreamsList = ({ className, video, ...props }) => {
             window.history.back();
         }
     }, [video]);
+
+
     const countLoadingAddons = React.useMemo(() => {
         return props.streams.filter((stream) => stream.content.type === 'Loading').length;
     }, [props.streams]);
-    const streamsByAddon = React.useMemo(() => {
-        return props.streams
-            .filter((streams) => streams.content.type === 'Ready')
-            .reduce((streamsByAddon, streams) => {
-                streamsByAddon[streams.addon.transportUrl] = {
-                    addon: streams.addon,
-                    streams: streams.content.content.map((stream) => ({
-                        ...stream,
-                        onClick: () => {
-                            core.transport.analytics({
-                                event: 'StreamClicked',
-                                args: {
-                                    stream
-                                }
-                            });
-                        },
-                        addonName: streams.addon.manifest.name
-                    }))
-                };
 
-                return streamsByAddon;
-            }, {});
+
+    // const streamsByAddon = React.useMemo(() => {
+    //     return props.streams
+    //         .filter((streams) => streams.content.type === 'Ready')
+    //         .reduce((streamsByAddon, streams) => {
+    //             streamsByAddon[streams.addon.transportUrl] = {
+    //                 addon: streams.addon,
+    //                 streams: streams.content.content.map((stream) => ({
+    //                     ...stream,
+    //                     onClick: () => {
+    //                         core.transport.analytics({
+    //                             event: 'StreamClicked',
+    //                             args: {
+    //                                 stream
+    //                             }
+    //                         });
+    //                     },
+    //                     addonName: streams.addon.manifest.name
+    //                 }))
+    //             };
+    //
+    //             return streamsByAddon;
+    //         }, {});
+    // }, [props.streams]);
+
+    const streamsByAddon = React.useMemo(() => {
+        const sortedStreams = props.streams
+            .filter((streams) => streams.content.type === 'Ready')
+            .sort((a, b) => {
+                if (a.addon.manifest.name === "WatchHub" && b.addon.manifest.name !== "WatchHub") {
+                    return 1; // Move "WatchHub" to the bottom
+                } else if (a.addon.manifest.name !== "WatchHub" && b.addon.manifest.name === "WatchHub") {
+                    return -1; // Move other addons above "WatchHub"
+                }
+                return 0; // Maintain original order otherwise
+            });
+
+        return sortedStreams.reduce((streamsByAddon, streams) => {
+            streamsByAddon[streams.addon.transportUrl] = {
+                addon: streams.addon,
+                streams: streams.content.content.map((stream) => ({
+                    ...stream,
+                    onClick: () => {
+                        core.transport.analytics({
+                            event: 'StreamClicked',
+                            args: {
+                                stream
+                            }
+                        });
+                    },
+                    addonName: streams.addon.manifest.name
+                }))
+            };
+
+            return streamsByAddon;
+        }, {});
     }, [props.streams]);
+
+
+    // console.log(streamsByAddon);
+
     const filteredStreams = React.useMemo(() => {
         return selectedAddon === ALL_ADDONS_KEY ?
             Object.values(streamsByAddon).map(({ streams }) => streams).flat(1)
@@ -66,6 +112,8 @@ const StreamsList = ({ className, video, ...props }) => {
                 :
                 [];
     }, [streamsByAddon, selectedAddon]);
+
+
     const selectableOptions = React.useMemo(() => {
         return {
             title: 'Select Addon',
@@ -85,6 +133,8 @@ const StreamsList = ({ className, video, ...props }) => {
             onSelect: onAddonSelected
         };
     }, [streamsByAddon, selectedAddon]);
+
+
     return (
         <div className={classnames(className, styles['streams-list-container'])}>
             <div className={styles['select-choices-wrapper']}>
@@ -160,10 +210,6 @@ const StreamsList = ({ className, video, ...props }) => {
                                 </div>
                             </React.Fragment>
             }
-            <Button className={styles['install-button-container']} title={t('ADDON_CATALOGUE_MORE')} href={'#/addons'}>
-                <Icon className={styles['icon']} name={'addons'} />
-                <div className={styles['label']}>{ t('ADDON_CATALOGUE_MORE') }</div>
-            </Button>
         </div>
     );
 };

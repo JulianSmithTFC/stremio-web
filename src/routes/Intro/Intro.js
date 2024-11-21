@@ -11,8 +11,13 @@ const { Button, Image, useBinaryState } = require('stremio/common');
 const CredentialsTextInput = require('./CredentialsTextInput');
 const ConsentCheckbox = require('./ConsentCheckbox');
 const PasswordResetModal = require('./PasswordResetModal');
-const useFacebookLogin = require('./useFacebookLogin');
+// const useFacebookLogin = require('./useFacebookLogin');
 const styles = require('./styles');
+
+const auth = require('../../firebase');
+const { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } = require('firebase/auth');
+
+// import { auth } from '../../firebase';
 
 const SIGNUP_FORM = 'signup';
 const LOGIN_FORM = 'login';
@@ -21,7 +26,7 @@ const Intro = ({ queryParams }) => {
     const { core } = useServices();
     const { t } = useTranslation();
     const routeFocused = useRouteFocused();
-    const [startFacebookLogin, stopFacebookLogin] = useFacebookLogin();
+    // const [startFacebookLogin, stopFacebookLogin] = useFacebookLogin();
     const emailRef = React.useRef(null);
     const passwordRef = React.useRef(null);
     const confirmPasswordRef = React.useRef(null);
@@ -31,6 +36,8 @@ const Intro = ({ queryParams }) => {
     const errorRef = React.useRef(null);
     const [passwordRestModalOpen, openPasswordRestModal, closePasswordResetModal] = useBinaryState(false);
     const [loaderModalOpen, openLoaderModal, closeLoaderModal] = useBinaryState(false);
+
+
     const [state, dispatch] = React.useReducer(
         (state, action) => {
             switch (action.type) {
@@ -41,9 +48,6 @@ const Intro = ({ queryParams }) => {
                             email: '',
                             password: '',
                             confirmPassword: '',
-                            termsAccepted: false,
-                            privacyPolicyAccepted: false,
-                            marketingAccepted: false,
                             error: ''
                         };
                     }
@@ -70,43 +74,45 @@ const Intro = ({ queryParams }) => {
             }
         },
         {
-            form: [LOGIN_FORM, SIGNUP_FORM].includes(queryParams.get('form')) ? queryParams.get('form') : SIGNUP_FORM,
+            form: [LOGIN_FORM, SIGNUP_FORM].includes(queryParams.get('form')) ? queryParams.get('form') : LOGIN_FORM,
             email: '',
             password: '',
             confirmPassword: '',
-            termsAccepted: false,
-            privacyPolicyAccepted: false,
-            marketingAccepted: false,
             error: ''
         }
     );
-    const loginWithFacebook = React.useCallback(() => {
-        openLoaderModal();
-        startFacebookLogin()
-            .then(({ email, password }) => {
-                core.transport.dispatch({
-                    action: 'Ctx',
-                    args: {
-                        action: 'Authenticate',
-                        args: {
-                            type: 'Login',
-                            email,
-                            password,
-                            facebook: true
-                        }
-                    }
-                });
-            })
-            .catch((error) => {
-                closeLoaderModal();
-                dispatch({ type: 'error', error: error.message });
-            });
-    }, []);
-    const cancelLoginWithFacebook = React.useCallback(() => {
-        stopFacebookLogin();
-        closeLoaderModal();
-    }, []);
-    const loginWithEmail = React.useCallback(() => {
+
+
+    // const loginWithFacebook = React.useCallback(() => {
+    //     openLoaderModal();
+    //     startFacebookLogin()
+    //         .then(({ email, password }) => {
+    //             core.transport.dispatch({
+    //                 action: 'Ctx',
+    //                 args: {
+    //                     action: 'Authenticate',
+    //                     args: {
+    //                         type: 'Login',
+    //                         email,
+    //                         password,
+    //                         facebook: true
+    //                     }
+    //                 }
+    //             });
+    //         })
+    //         .catch((error) => {
+    //             closeLoaderModal();
+    //             dispatch({ type: 'error', error: error.message });
+    //         });
+    // }, []);
+    // const cancelLoginWithFacebook = React.useCallback(() => {
+    //     stopFacebookLogin();
+    //     closeLoaderModal();
+    // }, []);
+
+
+    const loginWithEmail = React.useCallback(async () => {
+
         if (typeof state.email !== 'string' || state.email.length === 0 || !emailRef.current.validity.valid) {
             dispatch({ type: 'error', error: 'Invalid email' });
             return;
@@ -116,26 +122,21 @@ const Intro = ({ queryParams }) => {
             return;
         }
         openLoaderModal();
-        core.transport.dispatch({
-            action: 'Ctx',
-            args: {
-                action: 'Authenticate',
-                args: {
-                    type: 'Login',
-                    email: state.email,
-                    password: state.password
-                }
-            }
-        });
-    }, [state.email, state.password]);
-    const loginAsGuest = React.useCallback(() => {
-        if (!state.termsAccepted) {
-            dispatch({ type: 'error', error: 'You must accept the Terms of Service' });
-            return;
+
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth.default, state.email, state.password);
+            console.log(userCredential);
+            // alert("Logged in successfully!");
+            window.location = '';
+            closeLoaderModal();
+        } catch (error) {
+            closeLoaderModal();
+            dispatch({ type: 'error', error: error.message });
         }
-        window.location = '#/';
-    }, [state.termsAccepted]);
-    const signup = React.useCallback(() => {
+
+    }, [state.email, state.password]);
+
+    const signup = React.useCallback(async () => {
         if (typeof state.email !== 'string' || state.email.length === 0 || !emailRef.current.validity.valid) {
             dispatch({ type: 'error', error: 'Invalid email' });
             return;
@@ -148,33 +149,27 @@ const Intro = ({ queryParams }) => {
             dispatch({ type: 'error', error: 'Passwords do not match' });
             return;
         }
-        if (!state.termsAccepted) {
-            dispatch({ type: 'error', error: 'You must accept the Terms of Service' });
-            return;
-        }
-        if (!state.privacyPolicyAccepted) {
-            dispatch({ type: 'error', error: 'You must accept the Privacy Policy' });
-            return;
-        }
+
         openLoaderModal();
-        core.transport.dispatch({
-            action: 'Ctx',
-            args: {
-                action: 'Authenticate',
-                args: {
-                    type: 'Register',
-                    email: state.email,
-                    password: state.password,
-                    gdpr_consent: {
-                        tos: state.termsAccepted,
-                        privacy: state.privacyPolicyAccepted,
-                        marketing: state.marketingAccepted,
-                        from: 'web'
-                    }
-                }
-            }
-        });
-    }, [state.email, state.password, state.confirmPassword, state.termsAccepted, state.privacyPolicyAccepted, state.marketingAccepted]);
+
+        // console.log(state.email);
+        // console.log(state.password);
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth.default, state.email, state.password);
+            console.log(userCredential);
+            // alert("Signed up successfully!");
+            window.location = '';
+            closeLoaderModal();
+        } catch (error) {
+            closeLoaderModal();
+            dispatch({ type: 'error', error: 'Failed to Create User - Fuck You I Guess...' });
+            console.log("failed");
+        }
+
+    }, [state.email, state.password, state.confirmPassword]);
+
+
     const emailOnChange = React.useCallback((event) => {
         dispatch({
             type: 'change-credentials',
@@ -182,9 +177,13 @@ const Intro = ({ queryParams }) => {
             value: event.currentTarget.value
         });
     }, []);
+
+
     const emailOnSubmit = React.useCallback(() => {
         passwordRef.current.focus();
     }, []);
+
+
     const passwordOnChange = React.useCallback((event) => {
         dispatch({
             type: 'change-credentials',
@@ -192,6 +191,8 @@ const Intro = ({ queryParams }) => {
             value: event.currentTarget.value
         });
     }, []);
+
+
     const passwordOnSubmit = React.useCallback(() => {
         if (state.form === SIGNUP_FORM) {
             confirmPasswordRef.current.focus();
@@ -199,6 +200,8 @@ const Intro = ({ queryParams }) => {
             loginWithEmail();
         }
     }, [state.form, loginWithEmail]);
+
+
     const confirmPasswordOnChange = React.useCallback((event) => {
         dispatch({
             type: 'change-credentials',
@@ -206,37 +209,40 @@ const Intro = ({ queryParams }) => {
             value: event.currentTarget.value
         });
     }, []);
+
+
     const confirmPasswordOnSubmit = React.useCallback(() => {
         termsRef.current.focus();
     }, []);
-    const toggleTermsAccepted = React.useCallback(() => {
-        dispatch({ type: 'toggle-checkbox', name: 'termsAccepted' });
-    }, []);
-    const togglePrivacyPolicyAccepted = React.useCallback(() => {
-        dispatch({ type: 'toggle-checkbox', name: 'privacyPolicyAccepted' });
-    }, []);
-    const toggleMarketingAccepted = React.useCallback(() => {
-        dispatch({ type: 'toggle-checkbox', name: 'marketingAccepted' });
-    }, []);
+
+
     const switchFormOnClick = React.useCallback(() => {
         const queryParams = new URLSearchParams([['form', state.form === SIGNUP_FORM ? LOGIN_FORM : SIGNUP_FORM]]);
         window.location = `#/intro?${queryParams.toString()}`;
     }, [state.form]);
+
+
     React.useEffect(() => {
         if ([LOGIN_FORM, SIGNUP_FORM].includes(queryParams.get('form'))) {
             dispatch({ type: 'set-form', form: queryParams.get('form') });
         }
     }, [queryParams]);
+
+
     React.useEffect(() => {
         if (routeFocused && typeof state.error === 'string' && state.error.length > 0) {
             errorRef.current.scrollIntoView();
         }
     }, [state.error]);
+
+
     React.useEffect(() => {
         if (routeFocused) {
             emailRef.current.focus();
         }
     }, [state.form, routeFocused]);
+
+
     React.useEffect(() => {
         const onCoreEvent = ({ event, args }) => {
             switch (event) {
@@ -261,6 +267,15 @@ const Intro = ({ queryParams }) => {
             core.transport.off('CoreEvent', onCoreEvent);
         };
     }, [routeFocused]);
+
+    // Function to toggle between signup and login forms
+    const toggleForm = React.useCallback(() => {
+        dispatch({
+            type: 'set-form',
+            form: state.form === SIGNUP_FORM ? LOGIN_FORM : SIGNUP_FORM
+        });
+    }, [state.form]);
+
     return (
         <div className={styles['intro-container']}>
             <div className={styles['background-container']} />
@@ -269,7 +284,7 @@ const Intro = ({ queryParams }) => {
                     <Image className={styles['logo']} src={require('/images/logo.png')} alt={' '} />
                 </div>
                 <div className={styles['title-container']}>
-                    Freedom to Stream
+                    Freedom to Fuck & Stream
                 </div>
                 <div className={styles['slogan-container']}>
                     All the Video Content You Enjoy in One Place
@@ -307,31 +322,6 @@ const Intro = ({ queryParams }) => {
                                     onChange={confirmPasswordOnChange}
                                     onSubmit={confirmPasswordOnSubmit}
                                 />
-                                <ConsentCheckbox
-                                    ref={termsRef}
-                                    className={styles['consent-checkbox']}
-                                    label={'I have read and agree with the Stremio'}
-                                    link={'Terms and conditions'}
-                                    href={'https://www.stremio.com/tos'}
-                                    checked={state.termsAccepted}
-                                    onToggle={toggleTermsAccepted}
-                                />
-                                <ConsentCheckbox
-                                    ref={privacyPolicyRef}
-                                    className={styles['consent-checkbox']}
-                                    label={'I have read and agree with the Stremio'}
-                                    link={'Privacy Policy'}
-                                    href={'https://www.stremio.com/privacy'}
-                                    checked={state.privacyPolicyAccepted}
-                                    onToggle={togglePrivacyPolicyAccepted}
-                                />
-                                <ConsentCheckbox
-                                    ref={marketingRef}
-                                    className={styles['consent-checkbox']}
-                                    label={'I agree to receive marketing communications from Stremio'}
-                                    checked={state.marketingAccepted}
-                                    onToggle={toggleMarketingAccepted}
-                                />
                             </React.Fragment>
                             :
                             <div className={styles['forgot-password-link-container']}>
@@ -344,39 +334,21 @@ const Intro = ({ queryParams }) => {
                             :
                             null
                     }
+                    <br/>
+                    {/*<Button className={classnames(styles['form-button'], styles['submit-button'])} onClick={state.form === SIGNUP_FORM ? signup : loginWithEmail}>*/}
+                    {/*    <div className={styles['label']}>{state.form === SIGNUP_FORM ? 'Sign up' : 'Log in'}</div>*/}
+                    {/*</Button>*/}
                     <Button className={classnames(styles['form-button'], styles['submit-button'])} onClick={state.form === SIGNUP_FORM ? signup : loginWithEmail}>
-                        <div className={styles['label']}>{state.form === SIGNUP_FORM ? 'Sign up' : 'Log in'}</div>
+                        <div className={styles['label']}>Log in</div>
                     </Button>
-                </div>
-                <div className={styles['options-container']}>
-                    <Button className={classnames(styles['form-button'], styles['facebook-button'])} onClick={loginWithFacebook}>
-                        <Icon className={styles['icon']} name={'facebook'} />
-                        <div className={styles['label']}>Continue with Facebook</div>
-                    </Button>
-                    {
-                        state.form === SIGNUP_FORM ?
-                            <Button className={classnames(styles['form-button'], styles['login-form-button'])} onClick={switchFormOnClick}>
-                                <div className={styles['label']}>LOG IN</div>
-                            </Button>
-                            :
-                            null
-                    }
-                    {
-                        state.form === LOGIN_FORM ?
-                            <Button className={classnames(styles['form-button'], styles['signup-form-button'])} onClick={switchFormOnClick}>
-                                <div className={styles['label']}>SIGN UP WITH EMAIL</div>
-                            </Button>
-                            :
-                            null
-                    }
-                    {
-                        state.form === SIGNUP_FORM ?
-                            <Button className={classnames(styles['form-button'], styles['guest-login-button'])} onClick={loginAsGuest}>
-                                <div className={styles['label']}>GUEST LOGIN</div>
-                            </Button>
-                            :
-                            null
-                    }
+                    {/* Toggle button */}
+                    {/*<Button*/}
+                    {/*    className={classnames(styles['form-button'], styles['toggle-button'])}*/}
+                    {/*    onClick={toggleForm}>*/}
+                    {/*    {state.form === SIGNUP_FORM*/}
+                    {/*        ? 'Already have an account? Log in'*/}
+                    {/*        : "Don't have an account? Sign up"}*/}
+                    {/*</Button>*/}
                 </div>
             </div>
             {
@@ -391,9 +363,6 @@ const Intro = ({ queryParams }) => {
                         <div className={styles['loader-container']}>
                             <Icon className={styles['icon']} name={'person'} />
                             <div className={styles['label']}>Authenticating...</div>
-                            <Button className={styles['button']} onClick={cancelLoginWithFacebook}>
-                                {t('BUTTON_CANCEL')}
-                            </Button>
                         </div>
                     </Modal>
                     :

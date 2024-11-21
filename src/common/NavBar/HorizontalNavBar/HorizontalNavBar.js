@@ -54,14 +54,14 @@ const HorizontalNavBar = React.memo(({ className, route, query, title, backButto
                     null
             }
             <div className={styles['buttons-container']}>
-                {
-                    addonsButton ?
-                        <Button className={styles['button-container']} href={'#/addons'} title={t('ADDONS')} tabIndex={-1}>
-                            <Icon className={styles['icon']} name={'addons-outline'} />
-                        </Button>
-                        :
-                        null
-                }
+                {/*{*/}
+                {/*    addonsButton ?*/}
+                {/*        <Button className={styles['button-container']} href={'#/addons'} title={t('ADDONS')} tabIndex={-1}>*/}
+                {/*            <Icon className={styles['icon']} name={'addons-outline'} />*/}
+                {/*        </Button>*/}
+                {/*        :*/}
+                {/*        null*/}
+                {/*}*/}
                 {
                     !isIOSPWA && fullscreenButton ?
                         <Button className={styles['button-container']} title={fullscreen ? t('EXIT_FULLSCREEN') : t('ENTER_FULLSCREEN')} tabIndex={-1} onClick={fullscreen ? exitFullscreen : requestFullscreen}>
